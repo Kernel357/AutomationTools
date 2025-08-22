@@ -93,7 +93,9 @@ namespace AutomationTools
             }
 
             // После завершения закрываем Revit
-            _ServiceInterfaces[ThreadNumber].RevitShutdown();
+            _ServiceInterfaces[ThreadNumber].RunTask("RevitShutdown",
+                                                     ref StatusMessage,
+                                                     new string[] { });
 
             return;
         }
@@ -101,7 +103,7 @@ namespace AutomationTools
 
         private static Defines.Status InitRevitAPI()
         {
-            int Port = 9000;
+            int Port = 9000; 
 
             for (int i = 0; i < _NumberOfWorkingCores; i++)
             {
@@ -114,7 +116,7 @@ namespace AutomationTools
 
                 // Используем метод с планировщиком Windows и добавляем задачу
                 // с выполнением по триггеру. Активируем этот триггер из нашего приложения. Задача запустит Revit.exe
-                EventLog.WriteEvent("Application", new EventInstance(_RevitAndNavisworksVersion, 0));
+                EventLog.WriteEvent("Application", new EventInstance(_RevitAndNavisworksVersion, 0)); 
 
                 // Подключаемся к WCF сервису, запущенному внутри Revit,
                 // чтобы получить возможность выполнять действия с проектом в контексте Revit

@@ -93,7 +93,9 @@ namespace AutomationTools
             }
 
             // После завершения закрываем Revit
-            _ServiceInterfaces[ThreadNumber].RevitShutdown();
+            _ServiceInterfaces[ThreadNumber].RunTask("RevitShutdown",
+                                                     ref StatusMessage,
+                                                     new string[] { });
 
             return;
         }

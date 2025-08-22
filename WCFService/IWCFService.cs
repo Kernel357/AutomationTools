@@ -12,9 +12,5 @@ namespace WCFServiceInRevit
         // Запускаем новую задачу в контексте Revit и дожидаемся завершения (блокирующий способ)
         [OperationContract]
         int RunTask(string TaskName, ref string StatusMessage, string[] Args);
-
-        // Закрываем Revit
-        [OperationContract]
-        void RevitShutdown();
     }
 }

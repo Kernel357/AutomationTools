@@ -58,7 +58,6 @@ namespace AutomationTools
                     "                   NW - экспорт в Navisworks форматы\n" +
                     "                   RVT - загрузка .rvt с сервера\n" +
                     "                   IFC - экспорт в IFC формат\n\n" +
-                    //"               <DestinationPath> - необязательный аргумент, определяет путь, куда следует переместить готовые файлы. Если неопределён, то используется путь из конфигурационного файла\n \n" +
                     "           Н-р: .\\AutomationTools.exe Ocean100M Configs\\Config_2022.bconf NW_IFC\n ");
 
                 return 0;
@@ -410,10 +409,7 @@ namespace AutomationTools
                 Console.WriteLine("[*] Настраиваем вспомогательные задачи...");
 
                 // Проходимся по каждой версии, указанной в аргументах.
-                // Самое важное в этом разделе, что информацию об установленных версиях Revit нужно получать из реестра.
-                // Потому что если позволить пользователю указывать путь, где должны находится установленные версии,
-                // то недобросовестный пользователь может подменить путь до настоящего файла нелегетимным путём и
-                // добится выполнения произвольного кода, когда AutomationTools попытается запустить Revit.
+                // Получаем установленные версии из реестра.
                 int RevitVersionIndex = 2;
 
                 // Получаем корневой ключ Revit, здесь хранятся записи обо всех версиях, установленных в системе
@@ -500,6 +496,52 @@ namespace AutomationTools
                     RevitVersionIndex++;
                 }
             }    
+
+            if (args[1].Contains("PRIVWINSKIP"))
+            {
+                Console.WriteLine("[*] Настраиваем конфиденциальность Revit...");
+
+                int RevitVersionIndex = 2;
+
+                // Получаем корневой ключ Revit, здесь хранятся записи обо всех версиях, установленных в системе
+                RegistryKey RevitRootKey = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Autodesk\\Revit", true);
+
+                if (RevitRootKey == null)
+                {
+                    Console.WriteLine("[-] В реестре не найден SOFTWARE\\Autodesk\\Revit");
+                    return Defines.Status.Error;
+                }
+
+                RegistryKey RevitVersionKey;
+                RegistryKey PrivacyNoticeKey;
+                while (RevitVersionIndex < args.Length)
+                {
+                    Console.WriteLine("[*] Поиск Revit " + args[RevitVersionIndex] + "...");
+
+                    // Получаем ключ Revit для заданной версии
+                    RevitVersionKey = RevitRootKey.OpenSubKey(args[RevitVersionIndex], true);
+
+                    // Если его нет в системе - Revit не установлен
+                    if (RevitVersionKey == null)
+                    {
+                        Console.WriteLine("[-] Revit " + args[RevitVersionIndex] + " не установлен!");
+                        RevitVersionIndex++;
+                        continue;
+                    }
+
+                    PrivacyNoticeKey = RevitVersionKey.OpenSubKey("PrivacyNotice", true);
+                    if (PrivacyNoticeKey == null)
+                        PrivacyNoticeKey = RevitVersionKey.CreateSubKey("PrivacyNotice", true);
+
+                    PrivacyNoticeKey.SetValue("AlreadyAccepted", 1, RegistryValueKind.DWord);
+                    PrivacyNoticeKey.SetValue("ShowOnFirstRun", 0, RegistryValueKind.DWord);
+
+                    RevitVersionKey.Close();
+                    PrivacyNoticeKey.Close();
+
+                    RevitVersionIndex++;
+                }
+            }
 
             return Defines.Status.Success;
         }
