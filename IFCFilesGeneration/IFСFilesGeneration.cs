@@ -9,7 +9,7 @@ using WCFServiceInRevit;
 
 namespace AutomationTools
 {
-    class IFСFilesGeneration
+    class IFСFilesGeneration 
     {
         private static List<IWCFService>    _ServiceInterfaces;
         private static string[,,]           _BufferForModelReferences;
@@ -20,7 +20,7 @@ namespace AutomationTools
         private static int                  _RevitAndNavisworksVersion;
         private static Defines.Status       _Status;
 
-        private static void IFCFilesGenerationWorker(object Param)
+        private static void FilesGenerationWorker(object Param)
         {
             Defines.Status Status = Defines.Status.Success;
             string StatusMessage = string.Empty;
@@ -150,7 +150,7 @@ namespace AutomationTools
             return Defines.Status.Success;
         }
 
-        public static Defines.Status IFСFilesGenerationMain(ref string[,,]                  BufferForModelReferences,
+        public static Defines.Status FilesGenerationMain(ref string[,,]                  BufferForModelReferences,
                                                             int                             RevitAndNavisworksVersion,
                                                             int                             NumberOfWorkingCores,
                                                             ref int[]                       ModelIteratorForEachCPUCore,
@@ -182,7 +182,7 @@ namespace AutomationTools
 
             for (int i = 0; i < NumberOfWorkingCores; i++)
             {
-                Threads.Add(new Thread(IFCFilesGenerationWorker));
+                Threads.Add(new Thread(FilesGenerationWorker));
                 Threads[i].Start(i);
                 Console.WriteLine("[+] Поток {0} запущен!", i);
             }

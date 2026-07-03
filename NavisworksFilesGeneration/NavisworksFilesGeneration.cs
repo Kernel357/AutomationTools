@@ -20,7 +20,7 @@ namespace AutomationTools
         private static int                   _RevitAndNavisworksVersion;
         private static Defines.Status        _Status;
 
-        private static void NavisworksFilesGenerationWorker(object Param)
+        private static void FilesGenerationWorker(object Param)
         {
             Defines.Status Status = Defines.Status.Success;
             string StatusMessage = string.Empty;
@@ -151,15 +151,15 @@ namespace AutomationTools
             return Defines.Status.Success;
         }
 
-        public static Defines.Status NavisworksFilesGenerationMain(ref string[,,]                       BufferForModelReferences,
-                                                                   int                                  RevitAndNavisworksVersion,
-                                                                   int                                  NumberOfWorkingCores,
-                                                                   ref int[]                            ModelIteratorForEachCPUCore,
-                                                                   string                               BlockName,
-                                                                   string                               AutomationToolsCachePath,
-                                                                   string                               FileToolsTaskRunnerPath,
-                                                                   Dictionary<string, string>           DestinationPaths,
-                                                                   bool                                 ShouldDeleteUPDATEFile)
+        public static Defines.Status FilesGenerationMain(ref string[,,]                       BufferForModelReferences,
+                                                         int                                  RevitAndNavisworksVersion,
+                                                         int                                  NumberOfWorkingCores,
+                                                         ref int[]                            ModelIteratorForEachCPUCore,
+                                                         string                               BlockName,
+                                                         string                               AutomationToolsCachePath,
+                                                         string                               FileToolsTaskRunnerPath,
+                                                         Dictionary<string, string>           DestinationPaths,
+                                                         bool                                 ShouldDeleteUPDATEFile)
         {
             Console.WriteLine("[*] Генерация Navisworks файлов...");
 
@@ -186,7 +186,7 @@ namespace AutomationTools
 
             for (int i = 0; i < NumberOfWorkingCores; i++)
             {
-                Threads.Add(new Thread(NavisworksFilesGenerationWorker));
+                Threads.Add(new Thread(FilesGenerationWorker));
                 Threads[i].Start(i);
                 Console.WriteLine("[+] Поток {0} запущен!", i);
             }

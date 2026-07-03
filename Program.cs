@@ -1,10 +1,10 @@
-﻿using System;
+﻿using Microsoft.Win32;
 using Microsoft.Win32.TaskScheduler;
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using Microsoft.Win32;
-using System.Collections.Generic;
 
 namespace AutomationTools
 {
@@ -18,16 +18,18 @@ namespace AutomationTools
         private static BlockWithModels  _BlockWithModels;
         private static Config           _CurrentConfig;
 
+        [STAThread]
         static int Main(string[] args)
         {
-            string  IPAddressOfRevitServer;
-            int     RevitAndNavisworksVersion;
-            Dictionary<string, string> DestinationPaths = new Dictionary<string, string>(); // Содержит пути назначения для NWC, NWD, NWF, IFC, RVT файлов
-            string  AutomationToolsRootPath;
-            string  RevitPath;
+
+            string                          IPAddressOfRevitServer;
+            int                             RevitAndNavisworksVersion;
+            Dictionary<string, string>      DestinationPaths = new Dictionary<string, string>(); // Содержит пути назначения для NWC, NWD, NWF, IFC, RVT файлов
+            string                          AutomationToolsRootPath;
+            string                          RevitPath;
  
-            string  FileToolsTaskRunnerPath;
-            bool    ShouldDeleteUPDATEFile;
+            string                          FileToolsTaskRunnerPath;
+            bool                            ShouldDeleteUPDATEFile;
 
             Defines.Status Status;
 
@@ -43,38 +45,32 @@ namespace AutomationTools
             {
                 Console.WriteLine("[!] Режим автоматического первоначального развёртывания: \n \n" +
                     "           .\\AutomationTools.exe AutoDeploy <MODE> <Revit versions>\n \n" +
-                    "               <MODE> - определяет то, что следует настроить\n" +
+                    "               <MODE> - определяет режим развёртывания\n" +
                     "                   DIR - настроить необходимые директории\n" +
                     "                   CONFIG - переместить первоначальные файлы конфигурации в нужную директорию\n" +
                     "                   HELPERTASK - настроить вспомогательные задачи\n \n" +
-                    "               <Revit versions> - определяет то, для каких версий Revit будет настроено окружение\n \n" +
+                    "                   SIGNALDOCSAUTH - позволяет настроить авторизацию Signal Docs\n" +
+                    "               <Revit versions> - определяет версии Revit, для которых будет настроено окружение\n \n" +
                     "           Н-р: .\\AutomationTools.exe AutoDeploy DIR_CONFIG_HELPERTASK 2022 2021\n ");
 
                 Console.WriteLine("[!] Рабочий режим: \n \n" +
-                    "           .\\AutomationTools.exe <BlockName> <ConfigFileName> <ExportFormat> \n \n" +
+                    "           .\\AutomationTools.exe <BlockName> <ConfigFileName> <MODE> \n \n" +
                     "               <BlockName> - определяет имя блока, который нужно обработать\n\n" +
                     "               <ConfigFileName> - определяет имя файла конфигурации\n\n" +
-                    "               <ExportFormat> - определяет форматы, в которые нужно экспортировать\n" +
+                    "               <MODE> - определяет режим работы\n" +
                     "                   NW - экспорт в Navisworks форматы\n" +
                     "                   RVT - загрузка .rvt с сервера\n" +
-                    "                   IFC - экспорт в IFC формат\n\n" +
+                    "                   IFC - экспорт в IFC формат\n" +
+                    "                   SD - производит загрузку моделей на сервер и запускает обработку Autodesk Forge\n\n" +
                     "           Н-р: .\\AutomationTools.exe Ocean100M Configs\\Config_2022.bconf NW_IFC\n ");
 
                 return 0;
             }
 
-            if (args.Length < 3)
-            {
-                Console.WriteLine("[-] Недопустимые параметры, прерывание...");
-                Console.WriteLine("[!] Проверьте вводимые параметры. Для справки: .\\AutomationTools.exe help");
-                return -1;
-            }
-
-            // Здесь имеем важное разветвление - режим AutoDeploy
-            // Он позволяет инструменту разворачиваться в автоматическом режиме
+            // AutoDeploy Mode
             if (args[0] == "AutoDeploy")
             {
-                if (args.Length < 3)
+                if (args.Length < 3 && !args[1].Equals("SIGNALDOCSAUTH"))
                 {
                     Console.WriteLine("[-] Недопустимые параметры, прерывание...");
                     Console.WriteLine("[!] Проверьте вводимые параметры. Для справки: .\\AutomationTools.exe help");
@@ -90,6 +86,14 @@ namespace AutomationTools
 
                 Console.WriteLine("[+] Развёртывание завершено!");
                 return 0;
+            }
+
+            // Check args
+            if (args.Length < 3)
+            {
+                Console.WriteLine("[-] Недопустимые параметры, прерывание...");
+                Console.WriteLine("[!] Проверьте вводимые параметры. Для справки: .\\AutomationTools.exe help");
+                return -1;
             }
 
             _BlockName = args[0];
@@ -169,6 +173,7 @@ namespace AutomationTools
                                                                                  _NumberOfWorkingCores,
                                                                                  ref _BufferForModelReferences,
                                                                                  ref _ModelIteratorForEachCPUCore);
+            
             // Если загрузка не удалась, то выходим
             if (Status != Defines.Status.Success)
                 return -1;
@@ -194,11 +199,17 @@ namespace AutomationTools
                         if (PathToModel == null)
                             continue;
 
-                        System.IO.File.Copy(AutomationToolsRootPath + "\\Cache\\RVTs\\" + PathToModel, RVTDestinationPath + "\\" + _BlockName + "\\" + PathToModel.Substring(PathToModel.LastIndexOf("\\")));
+                        System.IO.File.Copy(AutomationToolsRootPath + 
+                                            "\\Cache\\RVTs\\" + 
+                                            PathToModel, 
+                                            RVTDestinationPath + 
+                                            "\\" + 
+                                            _BlockName + 
+                                            "\\" + 
+                                            PathToModel.Substring(PathToModel.LastIndexOf("\\")));
                     }
                 }        
             }
-
 
             if (args[2].Contains("NW"))
             {
@@ -220,21 +231,20 @@ namespace AutomationTools
                 Console.WriteLine("[*] Количество рабочих ядер для генерации NW файлов: {0}", _NumberOfWorkingCores);
 
                 // Извлекаем нужные виды из .rvt в целевой папке и создаём NWD/NWF
-                Status = NavisworksFilesGeneration.NavisworksFilesGenerationMain(ref _BufferForModelReferences,
-                                                                                 RevitAndNavisworksVersion,
-                                                                                 _NumberOfWorkingCores,
-                                                                                 ref _ModelIteratorForEachCPUCore,
-                                                                                 _BlockName,
-                                                                                 AutomationToolsRootPath + "\\Cache",
-                                                                                 FileToolsTaskRunnerPath,
-                                                                                 DestinationPaths,
-                                                                                 ShouldDeleteUPDATEFile);
+                Status = NavisworksFilesGeneration.FilesGenerationMain(ref _BufferForModelReferences,
+                                                                       RevitAndNavisworksVersion,
+                                                                       _NumberOfWorkingCores,
+                                                                       ref _ModelIteratorForEachCPUCore,
+                                                                       _BlockName,
+                                                                       AutomationToolsRootPath + "\\Cache",
+                                                                       FileToolsTaskRunnerPath,
+                                                                       DestinationPaths,
+                                                                       ShouldDeleteUPDATEFile);
 
                 // Если генерация не удалась, то выходим
                 if (Status != Defines.Status.Success)
                     return -1;
             }
-
 
             if (args[2].Contains("IFC"))
             {
@@ -256,17 +266,26 @@ namespace AutomationTools
                 Console.WriteLine("[*] Количество рабочих ядер для генерации IFC файлов: {0}", _NumberOfWorkingCores);
 
                 // Преобразуем .RVT -> .IFC
-                Status = IFСFilesGeneration.IFСFilesGenerationMain(ref _BufferForModelReferences,
-                                                                   RevitAndNavisworksVersion,
-                                                                   _NumberOfWorkingCores,
-                                                                   ref _ModelIteratorForEachCPUCore,
-                                                                   _BlockName,
-                                                                   AutomationToolsRootPath + "\\Cache",
-                                                                   DestinationPaths);
+                Status = IFСFilesGeneration.FilesGenerationMain(ref _BufferForModelReferences,
+                                                                RevitAndNavisworksVersion,
+                                                                _NumberOfWorkingCores,
+                                                                ref _ModelIteratorForEachCPUCore,
+                                                                _BlockName,
+                                                                AutomationToolsRootPath + "\\Cache",
+                                                                DestinationPaths);
 
                 // Если генерация не удалась, то выходим
                 if (Status != Defines.Status.Success)
                     return -1;
+            }
+
+            if (args[2].Contains("SD"))
+            {
+                AuthAndGetTokensModule.AuthAndGetTokensModuleMain();
+                string AccessToken = AuthAndGetTokensModule.AccessToken;
+
+                SignalDocsCommands.UploadFilesToServer(AccessToken);
+                SignalDocsCommands.StartAutodeskForgeProcessing(AccessToken);
             }
 
             Console.WriteLine("[*] Завершение работы инструметов автоматизации...");
@@ -278,9 +297,7 @@ namespace AutomationTools
         {
             // Ловим неверную конфигурацию ядер
             if (_NumberOfWorkingCores <= 0)
-            {
                 return Defines.Status.Error;
-            }
 
             // Получаем количество моделей в блоке
 
@@ -352,20 +369,19 @@ namespace AutomationTools
 
         static public void ClearCache(string CachePath)
         {
-            // Отчищаем кэш
+            // Clean the cache directory
             try
             {
-                foreach (string Directory in Directory.GetDirectories(CachePath)) {
+                foreach (string Directory in Directory.GetDirectories(CachePath))
                     Utils.RecursiveDelete(new DirectoryInfo(Directory));
-                }
             }
             catch
             {
                 Directory.CreateDirectory(CachePath);
             }
-            
 
-            // Создаём новые папки 
+
+            // Create necessary directories
             Directory.CreateDirectory(CachePath + "\\RVTs");
             Directory.CreateDirectory(CachePath + "\\NWCs");
             Directory.CreateDirectory(CachePath + "\\NWD");
@@ -377,7 +393,7 @@ namespace AutomationTools
         {
             Console.WriteLine("[*] Режим AutoDeploy...");
 
-            // Удаляем старые папки и создаём новые, если дана такая инструкция
+            // Delete and recreate necessary directories
             if (args[1].Contains("DIR"))
             {
                 Console.WriteLine("[*] Разбираемся с директориями...");
@@ -388,7 +404,7 @@ namespace AutomationTools
                 Directory.CreateDirectory(AutomationToolsRootPath + "\\Configs");
             }
 
-            // Далее проверим, есть ли в корневой папке инструмента файлы конфигурации. Если есть - перемещаем их в каталог Configs
+            // Check if we need to move configuration files
             if (args[1].Contains("CONFIG"))
             {
                 Console.WriteLine("[*] Перемещаем файлы конфигурации...");
@@ -397,13 +413,11 @@ namespace AutomationTools
                 {
                     FileInfo = new FileInfo(File);
                     if (FileInfo.Name.Contains("Config_"))
-                    {
                         System.IO.File.Move(FileInfo.Name, AutomationToolsRootPath + "\\Configs\\" + FileInfo.Name);
-                    }
                 }
             }
 
-            // Настроим вспомогательные задачи
+            // Setup helper tasks for Revit versions
             if (args[1].Contains("HELPERTASK"))
             {
                 Console.WriteLine("[*] Настраиваем вспомогательные задачи...");
@@ -495,52 +509,17 @@ namespace AutomationTools
                     Console.WriteLine("[+] Задача добавлена!");
                     RevitVersionIndex++;
                 }
-            }    
+            }
 
-            if (args[1].Contains("PRIVWINSKIP"))
+            // Setup SignalDocs authorization
+            if (args[1].Contains("SIGNALDOCSAUTH"))
             {
-                Console.WriteLine("[*] Настраиваем конфиденциальность Revit...");
+                Console.WriteLine("[*] Настраиваем авторизацию Signal Docs...");
 
-                int RevitVersionIndex = 2;
+                if(File.Exists("RefreshToken.txt"))
+                    File.Delete("RefreshToken.txt");
 
-                // Получаем корневой ключ Revit, здесь хранятся записи обо всех версиях, установленных в системе
-                RegistryKey RevitRootKey = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Autodesk\\Revit", true);
-
-                if (RevitRootKey == null)
-                {
-                    Console.WriteLine("[-] В реестре не найден SOFTWARE\\Autodesk\\Revit");
-                    return Defines.Status.Error;
-                }
-
-                RegistryKey RevitVersionKey;
-                RegistryKey PrivacyNoticeKey;
-                while (RevitVersionIndex < args.Length)
-                {
-                    Console.WriteLine("[*] Поиск Revit " + args[RevitVersionIndex] + "...");
-
-                    // Получаем ключ Revit для заданной версии
-                    RevitVersionKey = RevitRootKey.OpenSubKey(args[RevitVersionIndex], true);
-
-                    // Если его нет в системе - Revit не установлен
-                    if (RevitVersionKey == null)
-                    {
-                        Console.WriteLine("[-] Revit " + args[RevitVersionIndex] + " не установлен!");
-                        RevitVersionIndex++;
-                        continue;
-                    }
-
-                    PrivacyNoticeKey = RevitVersionKey.OpenSubKey("PrivacyNotice", true);
-                    if (PrivacyNoticeKey == null)
-                        PrivacyNoticeKey = RevitVersionKey.CreateSubKey("PrivacyNotice", true);
-
-                    PrivacyNoticeKey.SetValue("AlreadyAccepted", 1, RegistryValueKind.DWord);
-                    PrivacyNoticeKey.SetValue("ShowOnFirstRun", 0, RegistryValueKind.DWord);
-
-                    RevitVersionKey.Close();
-                    PrivacyNoticeKey.Close();
-
-                    RevitVersionIndex++;
-                }
+                AuthAndGetTokensModule.AuthAndGetTokensModuleMain();
             }
 
             return Defines.Status.Success;
