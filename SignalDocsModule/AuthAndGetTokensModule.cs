@@ -4,13 +4,13 @@ using System.Collections.Generic;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Linq;
-using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Windows.Forms;
 using System.IO;
 
 using WebView2 = Microsoft.Web.WebView2.WinForms.WebView2;
+using System.Net;
 
 
 namespace AutomationTools
@@ -19,8 +19,8 @@ namespace AutomationTools
     {
         static public string    AccessToken { get; private set; }
 
-        static private string   _RedirectUri = "electron://sgnl-auth";
-        static private string   _ClientID = "docs_disk_access_web";
+        static private string   _RedirectUri = "https://docs.sgnl.pro/callback";
+        static private string   _ClientID = "docs_web";
         static private string   _Scope = "offline_access cl.front cl.sys hub.r hub.e doc.c doc.r doc.u doc.d doc.e doc.x";
 
         static private string   _Code = string.Empty;
@@ -34,7 +34,7 @@ namespace AutomationTools
         static public void AuthAndGetTokensModuleMain()
         {
             // Check if the refresh token file exists
-            if (File.Exists("RefreshToken.txt"))
+            if (File.Exists("RefreshToken.txt") && !File.ReadAllText("RefreshToken.txt").Equals(""))
                 RefreshToken();
             else
                 AuthAndGetTokens(); 
@@ -98,28 +98,32 @@ namespace AutomationTools
         static private void SendRequestAndUpdateTokens(Dictionary<string, string> ContentPairs)
         {
             // Send the request to exchange the refresh token for a new access token (It doesn't make sense to use asynchronous functionality here)
-            HttpResponseMessage Response = new HttpClient().PostAsync(Defines.SignalDocsEndpoints["TokenEndpoint"], new FormUrlEncodedContent(ContentPairs)).Result;
+            string Response = HttpService.POSTSync(Defines.SignalDocsEndpoints["TokenEndpoint"], 
+                                                    new Dictionary<string, string>(), 
+                                                    ContentPairs, 
+                                                    "URLEncoded");
 
-            // Deserialize the response to get the access token and refresh token
-            JObject JResult = JsonConvert.DeserializeObject<JObject>(Response.Content.ReadAsStringAsync().Result);
-
-            string RefreshToken;
-
-            // Update the access token and refresh token
-            try
+            if (HttpService.StatusCode != HttpStatusCode.OK)
             {
-                AccessToken = JResult["access_token"]?.ToString();
-                RefreshToken = JResult["refresh_token"]?.ToString();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка получения токенов:\n{ex.Message}\n\nStackTrace:\n{ex.StackTrace}");
+                Console.WriteLine("Ошибка авторизации Signal Docs, прерывание...");
                 return;
             }
 
+            // Deserialize the response to get the access token and refresh token
+            JObject JResult = JsonConvert.DeserializeObject<JObject>(Response);
+
+            // Update the access token and refresh token
+            AccessToken = JResult["access_token"]?.ToString();
+            string RefreshToken = JResult["refresh_token"]?.ToString();
+
             // Save the new refresh token to a file
-            FileStream RefreshTokenFileStream = System.IO.File.Create("RefreshToken.txt");
-            RefreshTokenFileStream.Write(Encoding.UTF8.GetBytes(RefreshToken), 0, Encoding.UTF8.GetBytes(RefreshToken).Length);
+            try
+            {
+                FileStream RefreshTokenFileStream = System.IO.File.Create("RefreshToken.txt");
+                RefreshTokenFileStream.Write(Encoding.UTF8.GetBytes(RefreshToken), 0, Encoding.UTF8.GetBytes(RefreshToken).Length);
+            }
+            catch (Exception ex) { Console.WriteLine(ex.Message); }
+            
         }
 
         static private async void WebView2FormHandleCreatedCallback(object Sender, EventArgs EventArgs) {
@@ -136,7 +140,7 @@ namespace AutomationTools
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Критическая ошибка инициализации:\n{ex.Message}\n\nStackTrace:\n{ex.StackTrace}");
+                Console.WriteLine($"Критическая ошибка инициализации:\n{ex.Message}\n\nStackTrace:\n{ex.StackTrace}");
                 _WebView2Form.Close();
             }
         }

@@ -5,11 +5,10 @@ namespace WCFServiceInRevit
     [ServiceContract]
     public interface IWCFService
     {
-        // Метод, используемый для проверки загрузки WCF Service
         [OperationContract]
         int IsLoaded();
 
-        // Запускаем новую задачу в контексте Revit и дожидаемся завершения (блокирующий способ)
+        // Launching a new task in the Revit context (locking)
         [OperationContract]
         int RunTask(string TaskName, ref string StatusMessage, string[] Args);
     }
