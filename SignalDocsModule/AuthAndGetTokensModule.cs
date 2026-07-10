@@ -31,10 +31,14 @@ namespace AutomationTools
         static private Form     _WebView2Form;
         static private WebView2 _WebView2;
 
-        static public void AuthAndGetTokensModuleMain()
+        static private string   _AutomationToolsRootPath;
+
+        static public void AuthAndGetTokensModuleMain(string AutomationToolsRootPath)
         {
+            _AutomationToolsRootPath = AutomationToolsRootPath;
+
             // Check if the refresh token file exists
-            if (File.Exists("RefreshToken.txt") && !File.ReadAllText("RefreshToken.txt").Equals(""))
+            if (File.Exists($"{_AutomationToolsRootPath}\\RefreshToken.txt") && !File.ReadAllText($"{_AutomationToolsRootPath}\\RefreshToken.txt").Equals(""))
                 RefreshToken();
             else
                 AuthAndGetTokens(); 
@@ -43,7 +47,7 @@ namespace AutomationTools
         static private void RefreshToken()
         {
             // Read the refresh token from the file
-            string RefreshToken = File.ReadAllText("RefreshToken.txt");
+            string RefreshToken = File.ReadAllText($"{_AutomationToolsRootPath}\\RefreshToken.txt");
 
             // Build the request URL to exchange the refresh token for a new access token
             var ContentPairs = new Dictionary<string, string>
@@ -119,7 +123,7 @@ namespace AutomationTools
             // Save the new refresh token to a file
             try
             {
-                FileStream RefreshTokenFileStream = System.IO.File.Create("RefreshToken.txt");
+                FileStream RefreshTokenFileStream = System.IO.File.Create($"{_AutomationToolsRootPath}\\RefreshToken.txt");
                 RefreshTokenFileStream.Write(Encoding.UTF8.GetBytes(RefreshToken), 0, Encoding.UTF8.GetBytes(RefreshToken).Length);
             }
             catch (Exception ex) { Console.WriteLine(ex.Message); }

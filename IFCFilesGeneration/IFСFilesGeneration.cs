@@ -38,7 +38,7 @@ namespace AutomationTools
 
                 Status = (Defines.Status)_ServiceInterfaces[ThreadNumber].RunTask("OpenDocument",
                                                                                   ref StatusMessage,
-                                                                                  new string[] { _AutomationToolsCachePath + "\\RVTs\\" + _BlockName + "\\" + _BufferForModelReferences[(int)Param, i, 0] });
+                                                                                  new string[] { $"{_AutomationToolsCachePath}\\RVTs\\{_BlockName}\\{_BufferForModelReferences[(int)Param, i, 0]}" });
 
                 Console.WriteLine("[*] Поток {0}: Статус открытия документа: {1}", ThreadNumber, Status);
 
@@ -58,7 +58,7 @@ namespace AutomationTools
 
                 Status = (Defines.Status)_ServiceInterfaces[ThreadNumber].RunTask("ExportToIFC",
                                                                                   ref StatusMessage,
-                                                                                  new string[] { _AutomationToolsCachePath + "\\IFCs\\" + _BlockName});
+                                                                                  new string[] { $"{_AutomationToolsCachePath}\\IFCs\\{_BlockName}" });
 
                 Console.WriteLine("[*] Поток {0}: Статус экспорта в IFC: {1}", ThreadNumber, Status);
 
@@ -119,7 +119,7 @@ namespace AutomationTools
 
                 // Подключаемся к WCF сервису, запущенному внутри Revit,
                 // чтобы получить возможность выполнять действия с проектом в контексте Revit
-                EndpointAddress EndpointAddress = new EndpointAddress(new Uri("net.tcp://127.0.0.1:" + Port.ToString() + "/WCFService"));
+                EndpointAddress EndpointAddress = new EndpointAddress(new Uri($"net.tcp://127.0.0.1:{Port.ToString()}/WCFService"));
                 NetTcpBinding Binding = new NetTcpBinding();
 
                 Console.WriteLine("[*] Подключение к WCF сервису экземпляра Revit...");
@@ -151,12 +151,12 @@ namespace AutomationTools
         }
 
         public static Defines.Status FilesGenerationMain(ref string[,,]                  BufferForModelReferences,
-                                                            int                             RevitAndNavisworksVersion,
-                                                            int                             NumberOfWorkingCores,
-                                                            ref int[]                       ModelIteratorForEachCPUCore,
-                                                            string                          BlockName,
-                                                            string                          AutomationToolsCachePath,
-                                                            Dictionary<string, string>      DestinationPaths)
+                                                         int                             RevitAndNavisworksVersion,
+                                                         int                             NumberOfWorkingCores,
+                                                         ref int[]                       ModelIteratorForEachCPUCore,
+                                                         string                          BlockName,
+                                                         string                          AutomationToolsCachePath,
+                                                         Dictionary<string, string>      DestinationPaths)
         {
             Console.WriteLine("[*] Генерация IFC файлов...");
 
@@ -174,7 +174,7 @@ namespace AutomationTools
                 return Defines.Status.Error;
 
             // Создаём папку для экспорта в ICF
-            Directory.CreateDirectory(AutomationToolsCachePath + "\\IFCs\\" + BlockName);
+            Directory.CreateDirectory(Path.Combine(AutomationToolsCachePath, "IFCs", BlockName));
 
             // Запускаем потоки для работы с экземплярами Revit и передаём в них индекс, по которому они получат доступ к интерфейсу и процессу
             // Это позволит каждому потоку работать со своим экземпляром Revit
@@ -227,25 +227,22 @@ namespace AutomationTools
 
             // Выставляем флаг FirstGeneration, если это первая генерация для указанного блока
             bool FirstGeneration = false;
-            if (new DirectoryInfo(IFCDestinationPath + "\\" + BlockName).Exists == false)
-            {
+            if (new DirectoryInfo(Path.Combine(IFCDestinationPath, BlockName)).Exists == false)
                 FirstGeneration = true;
-            }
 
             // Если это уже не первая генерация - отчищаем старые файлы
             if (FirstGeneration == false)
-                Utils.RecursiveDelete(new DirectoryInfo(IFCDestinationPath + "\\" + BlockName));
+                Utils.RecursiveDelete(new DirectoryInfo(Path.Combine(IFCDestinationPath, BlockName)));
 
-            Directory.CreateDirectory(IFCDestinationPath + "\\" + BlockName);
+            Directory.CreateDirectory(Path.Combine(IFCDestinationPath, BlockName));
 
 
             // Копируем все IFC в пункт назначения
-            var Files = new DirectoryInfo(AutomationToolsCachePath + "\\IFCs\\" + BlockName).GetFiles();
+            var Files = new DirectoryInfo(Path.Combine(AutomationToolsCachePath, "IFCs", BlockName)).GetFiles();
             foreach (var File in Files)
             {
-                // Revit при экспорте создает логи, поэтому отфильтровываем модели от логов
                 if(File.Name.EndsWith(".ifc") == true)
-                    System.IO.File.Copy(File.FullName, IFCDestinationPath + "\\" + BlockName + "\\" + File.Name);
+                    System.IO.File.Copy(File.FullName, Path.Combine(IFCDestinationPath, BlockName, File.Name));
             }
 
             return Defines.Status.Success;

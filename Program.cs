@@ -16,27 +16,25 @@ namespace AutomationTools
         private static int              _NumberOfBlocksWithModels;
         private static string           _BlockName;
         private static BlockWithModels  _BlockWithModels;
+        private static string           _CompanyName;
+        private static string           _ProjectName;
         private static Config           _CurrentConfig;
+        
 
         [STAThread]
         static int Main(string[] args)
         {
-            string                          IPAddressOfRevitServer;
-            int                             RevitAndNavisworksVersion;
-            Dictionary<string, string>      DestinationPaths = new Dictionary<string, string>(); // Содержит пути назначения для NWC, NWD, NWF, IFC, RVT файлов
-            string                          AutomationToolsRootPath;
-            string                          AutomationToolsCachePath;
-            string                          RevitPath;
- 
-            string                          FileToolsTaskRunnerPath;
-            bool                            ShouldDeleteUPDATEFile;
+            string                      IPAddressOfRevitServer;
+            int                         RevitAndNavisworksVersion;
+            Dictionary<string, string>  DestinationPaths = new Dictionary<string, string>(); // Destination paths for NWC, NWD, NWF, IFC, RVT
+            string                      AutomationToolsRootPath;
+            string                      AutomationToolsCachePath;
+            string                      RevitPath;
 
-            Defines.Status Status;
+            string                      FileToolsTaskRunnerPath;
+            bool                        ShouldDeleteUPDATEFile;
 
-            AuthAndGetTokensModule.AuthAndGetTokensModuleMain();
-
-            SignalDocsCommands.StartAutodeskForgeProcessing(AuthAndGetTokensModule.AccessToken, "Чайка Лаб", "ПЕСОЧНИЦА", "КОНВ", "OC4(50m).nwd");
-            return 0;
+            Defines.Status              Status;
 
             // Starting...
             Console.WriteLine("[*] Запуск инструметов автоматизации...");
@@ -108,9 +106,9 @@ namespace AutomationTools
                 Console.WriteLine("[!] Проверьте правильность пути к файлу конфигураций");
                 return -1;
             }
-            
+
             IPAddressOfRevitServer = _CurrentConfig.IPAddressOfRevitServer;
-            RevitAndNavisworksVersion = _CurrentConfig.RevitAndNavisworksVersion;          
+            RevitAndNavisworksVersion = _CurrentConfig.RevitAndNavisworksVersion;
             RevitPath = _CurrentConfig.RevitPath;
             FileToolsTaskRunnerPath = _CurrentConfig.FileToolsTaskRunnerPath;
             ShouldDeleteUPDATEFile = _CurrentConfig.ShouldDeleteUPDATEFile;
@@ -121,8 +119,11 @@ namespace AutomationTools
             DestinationPaths.Add("IFC", _CurrentConfig.IFCDestinationPath);
             DestinationPaths.Add("RVT", _CurrentConfig.RVTDestinationPath);
 
-            _NumberOfWorkingCores = _CurrentConfig.NumberOfWorkingCoresToExportFromRevitServer;          
-            
+            _NumberOfWorkingCores = _CurrentConfig.NumberOfWorkingCoresToExportFromRevitServer;
+
+            _CompanyName = _CurrentConfig.CompanyName;
+            _ProjectName = _CurrentConfig.ProjectName;
+
             Console.WriteLine("[*] IP адрес Revit Server: {0}", IPAddressOfRevitServer);
             Console.WriteLine("[*] Версия Revit и Navisworks: {0}", RevitAndNavisworksVersion);
             Console.WriteLine("[*] Путь расположения AutomationTools: {0}", AutomationToolsRootPath);
@@ -171,8 +172,8 @@ namespace AutomationTools
 
             // Export models from Revit Server
             Status = ExportModelsFromRevitServer.ExportModelsFromRevitServerMain(_BlockName,
-                                                                                 IPAddressOfRevitServer, 
-                                                                                 RevitPath + "\\RevitServerToolCommand",
+                                                                                 IPAddressOfRevitServer,
+                                                                                 $"{RevitPath}\\RevitServerToolCommand",
                                                                                  AutomationToolsCachePath,
                                                                                  _NumberOfWorkingCores,
                                                                                  ref _BufferForModelReferences,
@@ -190,23 +191,31 @@ namespace AutomationTools
 
                 var RVTDestinationPath = DestinationPaths["RVT"];
                 string PathToModel = string.Empty;
-                
-                // Create destination folder
-                System.IO.Directory.CreateDirectory($"{RVTDestinationPath}\\{_BlockName}");
 
-                for (int i = 0; i < _BufferForModelReferences.GetLength(0); i++)
+                try
                 {
-                    for (int j = 0; j < _BufferForModelReferences.GetLength(1); j++)
+                    // Create destination folder
+                    System.IO.Directory.CreateDirectory($"{RVTDestinationPath}\\{_BlockName}");
+
+                    for (int i = 0; i < _BufferForModelReferences.GetLength(0); i++)
                     {
-                        PathToModel = _BufferForModelReferences[i, j, 0];
+                        for (int j = 0; j < _BufferForModelReferences.GetLength(1); j++)
+                        {
+                            PathToModel = _BufferForModelReferences[i, j, 0];
 
-                        if (PathToModel == null)
-                            continue;
+                            if (PathToModel == null)
+                                continue;
 
-                        System.IO.File.Copy($"{AutomationToolsCachePath}\\RVTs\\{PathToModel}",
-                                            $"{RVTDestinationPath}\\{_BlockName}\\{PathToModel.Substring(PathToModel.LastIndexOf("\\"))}");
+                            File.Copy($"{AutomationToolsCachePath}\\RVTs\\{_BlockName}\\{PathToModel}",
+                                      $"{RVTDestinationPath}\\{_BlockName}\\{PathToModel.Substring(PathToModel.LastIndexOf("\\"))}");
+                        }
                     }
-                }        
+                }
+                catch
+                {
+                    Console.WriteLine("[-] Не удалось скопировать файлы, прерывание...");
+                    return -1;
+                }
             }
 
             if (args[2].Contains("NW"))
@@ -275,11 +284,25 @@ namespace AutomationTools
 
             if (args[2].Contains("SD"))
             {
-                AuthAndGetTokensModule.AuthAndGetTokensModuleMain();
-                string AccessToken = AuthAndGetTokensModule.AccessToken;
+                AuthAndGetTokensModule.AuthAndGetTokensModuleMain(AutomationToolsRootPath);
 
-                SignalDocsCommands.UploadFilesToServer(AccessToken);
-                //SignalDocsCommands.StartAutodeskForgeProcessing(AccessToken);
+                Console.WriteLine("[*] Загружаем NWD файл на сервер Signal Docs...");
+                Status = SignalDocsCommands.UploadFilesToServer(AuthAndGetTokensModule.AccessToken, 
+                                                                _CompanyName, 
+                                                                _ProjectName,
+                                                                $"{DestinationPaths["NWD"].Split(new string[] { $"{_ProjectName}\\" }, StringSplitOptions.RemoveEmptyEntries)[1]}\\{_BlockName}",
+                                                                $"{DestinationPaths["NWD"]}\\{_BlockName}",
+                                                                $"{_BlockName}.nwd");
+
+                Console.WriteLine("[*] Статус загрузки файла: {0}", Status);
+
+                Console.WriteLine("[*] Запускаем Autodesk Forge конвертацию...");
+                Status = SignalDocsCommands.StartAutodeskForgeProcessing(AuthAndGetTokensModule.AccessToken, 
+                                                                        _CompanyName, 
+                                                                        _ProjectName,
+                                                                        $"{DestinationPaths["NWD"].Split(new string[] { $"{_ProjectName}\\" }, StringSplitOptions.RemoveEmptyEntries)[1]}\\{_BlockName}",
+                                                                        $"{_BlockName}.nwd");
+                Console.WriteLine("[*] Статус запуска конвертации: {0}", Status);
             }
 
             // Clean up the cache directory
@@ -483,7 +506,7 @@ namespace AutomationTools
                 if(File.Exists("RefreshToken.txt"))
                     File.Delete("RefreshToken.txt");
 
-                AuthAndGetTokensModule.AuthAndGetTokensModuleMain();
+                AuthAndGetTokensModule.AuthAndGetTokensModuleMain(AutomationToolsRootPath); 
             }
 
             return Defines.Status.Success;

@@ -19,6 +19,10 @@ namespace AutomationTools
         public int NumberOfWorkingCoresForGenerationNWFiles     { get; set; }
         public int NumberOfWorkingCoresForGenerationIFCFiles    { get; set; }
 
+        // Signal Docs segment
+        public string   CompanyName                     { get; set; }
+        public string   ProjectName                     { get; set; }
+
         public List<BlockWithModels> BlocksWithModels;
     }
 

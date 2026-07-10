@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using static System.Net.WebRequestMethods;
 
 namespace AutomationTools
 {
@@ -10,25 +9,44 @@ namespace AutomationTools
         {
             Success,
 
+            // DEFAULT
             Error,
+            FileDoesNotExistError,
+
+
+            // Signal Docs Error
+            AuthError,
+            GetTokenError,
+            RefreshTokenError,
+
+            CompanyWasNotFoundError,
+            ProjectWasNotFoundError,
+            ProjectTreeIsCorrupted,
+            FileWasNotFoundError,
+            FollowPathError,
+            AutodeskForgeProcessingError,
+            UploadFileError,
+
+            // Export errors
             ViewNotFoundError,
             ViewNotValidForElementIterationError,
             ExportViewError,
         }
 
-        public static Dictionary<string, (Func<Object, string>, string)> ContentType = new Dictionary<string, (Func<Object, string>, string)>()
+        public static Dictionary<string, (Func<Object, Object>, string)> ContentType = new Dictionary<string, (Func<Object, Object>, string)>()
         {
             {   "JSON",                 ( HttpService.GetJSONContent,           "application/json"                  )   },
-            {   "URLEncoded",           ( HttpService.GetURLEncodedContent,     "application/x-www-form-urlencoded" )   }
+            {   "URLEncoded",           ( HttpService.GetURLEncodedContent,     "application/x-www-form-urlencoded" )   },
+            {   "BINARY",               ( HttpService.GetBinaryContent,         "binary/octet-stream"               )   }
         };
 
         public static Dictionary<string, string> SignalDocsEndpoints = new Dictionary<string, string>()
         {
             {   "TokenEndpoint",            "https://hub.sgnl.pro/connect/token"        },
             {   "AuthEndpoint",             "https://hub.sgnl.pro/connect/authorize"    },
-            {   "HUBAPIV1BaseAddress",      "https://hub.sgnl.pro/api/v1"               },
-            {   "DOCSPROAPIBaseAddress",    "https://docs.sgnl.pro/api"                 },
-            {   "DOCSDEVAPIBaseAddress",    "https://docs.sgnl.dev/api"                 }
+            {   "HUBPROBaseAddress",        "https://hub.sgnl.pro"                      },
+            {   "DOCSPROBaseAddress",       "https://docs.sgnl.pro"                     },
+            {   "DOCSDEVBaseAddress",       "https://docs.sgnl.dev"                     }
         };
     }
 }

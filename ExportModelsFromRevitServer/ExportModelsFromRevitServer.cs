@@ -22,22 +22,23 @@ namespace AutomationTools
         {
             Process ExportProcess;
             int ThreadNumber = (int)Param;
-            StreamWriter StreamWriter = new StreamWriter(_AutomationToolsCachePath + "\\Logs\\" + _BlockName + "\\LogExportFromRevitServer_" + ThreadNumber.ToString() + ".log", true);
+            
+            StreamWriter StreamWriter = new StreamWriter($"{_AutomationToolsCachePath}\\Logs\\{_BlockName}\\LogExportFromRevitServer_{ThreadNumber.ToString()}.log", true);
 
             for (int i = 0; i < _ModelIteratorForEachCPUCore[ThreadNumber]; i++)
             {
-                // Проверяем глобальный статус экспорта, вдруг другой поток изменил статус, тогда нам нет смысла продолжать загрузку моделей
+                // Check global status
                 if (_Status != Defines.Status.Success)
                 {
                     StreamWriter.Close();
                     return;
                 }
-                    
-                // Запускаем процесс RevitServerTool для загрузки модели
-                ExportProcess = new Process{
-                    StartInfo = new ProcessStartInfo{
-                        FileName = _RevitServerToolPath + "\\RevitServerTool.exe",
-                        Arguments = "L " + "\"" + _BufferForModelReferences[ThreadNumber, i, 0] + "\"" + " -s " + _IPAddressOfRevitServer + " -d " + "\"" + _AutomationToolsCachePath + "\\RVTs\\" + _BlockName + _BufferForModelReferences[ThreadNumber, i, 1] + "\"" + " -o",
+
+                // Start RevitServerTool process
+                ExportProcess = new Process {
+                    StartInfo = new ProcessStartInfo {
+                        FileName = $"{_RevitServerToolPath}\\RevitServerTool.exe",
+                        Arguments = $"L \"{_BufferForModelReferences[ThreadNumber, i, 0]}\" -s {_IPAddressOfRevitServer} -d \" {_AutomationToolsCachePath}\\RVTs\\{_BlockName + _BufferForModelReferences[ThreadNumber, i, 1]}\" -o",
                         UseShellExecute = false,
                         RedirectStandardOutput = true,
                         CreateNoWindow = true
@@ -51,8 +52,8 @@ namespace AutomationTools
                 StreamWriter.WriteLine(ExportProcess.StandardOutput.ReadToEnd());
                 StreamWriter.WriteLine();
 
-                // Проверяем наличие файла 
-                if (!File.Exists(_AutomationToolsCachePath + "\\RVTs\\" + _BlockName + "\\" + _BufferForModelReferences[ThreadNumber, i, 0]))
+                // Check if the file exist 
+                if (!File.Exists($"{_AutomationToolsCachePath}\\RVTs\\{_BlockName}\\{_BufferForModelReferences[ThreadNumber, i, 0]}"))
                 {
                     _Status = Defines.Status.Error;
                     StreamWriter.Close();
@@ -72,7 +73,6 @@ namespace AutomationTools
                                                                      ref string[,,] BufferForModelReferences,
                                                                      ref int[]      ModelIteratorForEachCPUCore)
         {
-            // Инициализация...
             Console.WriteLine("[*] Загрузка моделей с Revit Server...");
                 
             _BlockName = BlockName;
@@ -82,7 +82,7 @@ namespace AutomationTools
             _AutomationToolsCachePath = AutomationToolsCachePath;
             _ModelIteratorForEachCPUCore = ModelIteratorForEachCPUCore;
 
-            // Запуск потоков экспорта
+            // Start threads for export
             List<Thread> Threads = new List<Thread>();
 
             for (int i = 0; i < NumberOfWorkingCores; i++)

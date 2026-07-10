@@ -38,7 +38,7 @@ namespace AutomationTools
 
                 Status = (Defines.Status)_ServiceInterfaces[ThreadNumber].RunTask("OpenDocument", 
                                                                                   ref StatusMessage,
-                                                                                  new string[] { _AutomationToolsCachePath + "\\RVTs\\" + _BlockName + "\\" + _BufferForModelReferences[(int)Param, i, 0]});
+                                                                                  new string[] { $"{_AutomationToolsCachePath}\\RVTs\\{_BlockName}\\{_BufferForModelReferences[(int)Param, i, 0]}" });
 
                 Console.WriteLine("[*] Поток {0}: Статус открытия документа: {1}", ThreadNumber, Status);
 
@@ -58,7 +58,7 @@ namespace AutomationTools
 
                 Status = (Defines.Status)_ServiceInterfaces[ThreadNumber].RunTask("ExportViewsToNWC", 
                                                                                   ref StatusMessage, 
-                                                                                  new string[] { _AutomationToolsCachePath + "\\NWCs\\" + _BlockName, "Navisworks" });
+                                                                                  new string[] { $"{_AutomationToolsCachePath}\\NWCs\\{_BlockName}", "Navisworks" });
 
                 Console.WriteLine("[*] Поток {0}: Статус экспорта вида: {1}", ThreadNumber, Status);
 
@@ -116,11 +116,11 @@ namespace AutomationTools
 
                 // Используем метод с планировщиком Windows и добавляем задачу
                 // с выполнением по триггеру. Активируем этот триггер из нашего приложения. Задача запустит Revit.exe
-                EventLog.WriteEvent("Application", new EventInstance(_RevitAndNavisworksVersion, 0)); 
+                EventLog.WriteEvent("Application", new EventInstance(_RevitAndNavisworksVersion, 0));
 
                 // Подключаемся к WCF сервису, запущенному внутри Revit,
                 // чтобы получить возможность выполнять действия с проектом в контексте Revit
-                EndpointAddress EndpointAddress = new EndpointAddress(new Uri("net.tcp://127.0.0.1:" + Port.ToString() + "/WCFService"));
+                EndpointAddress EndpointAddress = new EndpointAddress(new Uri($"net.tcp://127.0.0.1:{Port.ToString()}/WCFService"));
                 NetTcpBinding Binding = new NetTcpBinding();
                 
                 Console.WriteLine("[*] Подключение к WCF сервису экземпляра Revit...");
@@ -177,8 +177,8 @@ namespace AutomationTools
                 return Defines.Status.Error;
 
             // Создадим папки для экспорта NWC, NWD
-            Directory.CreateDirectory(AutomationToolsCachePath + "\\NWCs\\" + BlockName);
-            Directory.CreateDirectory(AutomationToolsCachePath + "\\NWD\\" + BlockName);
+            Directory.CreateDirectory(Path.Combine(AutomationToolsCachePath, "NWCs", BlockName));
+            Directory.CreateDirectory(Path.Combine(AutomationToolsCachePath, "NWD", BlockName));
 
             // Запускаем потоки для работы с экземплярами Revit и передаём в них индекс, по которому они получат доступ к интерфейсу и процессу
             // Это позволит каждому потоку работать со своим экземпляром Revit
@@ -233,37 +233,36 @@ namespace AutomationTools
             
             // Выставляем флаг FirstGeneration, если это первая генерация для указанного блока
             bool FirstGeneration = false;
-            if (new DirectoryInfo(NWCDestinationPath + "\\" + BlockName).Exists == false)
+            if (new DirectoryInfo(Path.Combine(NWCDestinationPath, BlockName)).Exists == false)
                 FirstGeneration = true;
-
-            
+ 
             // Если это уже не первая генерация - отчищаем старые файлы; NWF не трогаем, потому что она будет обновляться только по специальному файлу-маркеру.
             if (FirstGeneration == false)
             {
-                Utils.RecursiveDelete(new DirectoryInfo(NWCDestinationPath + "\\" + BlockName));
-                Utils.RecursiveDelete(new DirectoryInfo(NWDDestinationPath + "\\" + BlockName));
+                Utils.RecursiveDelete(new DirectoryInfo(Path.Combine(NWCDestinationPath, BlockName)));
+                Utils.RecursiveDelete(new DirectoryInfo(Path.Combine(NWDDestinationPath, BlockName)));
             }
 
-            Directory.CreateDirectory(NWCDestinationPath + "\\" + BlockName);
-            Directory.CreateDirectory(NWDDestinationPath + "\\" + BlockName);
+            Directory.CreateDirectory(Path.Combine(NWCDestinationPath, BlockName));
+            Directory.CreateDirectory(Path.Combine(NWDDestinationPath, BlockName));
 
 
             // Копируем все NWC в пункт назначения; делаем это до формирования NWF, чтобы в NWF были актуальные ссылки на NWC
-            var Files = new DirectoryInfo(AutomationToolsCachePath + "\\NWCs\\" + BlockName).GetFiles();
+            var Files = new DirectoryInfo(Path.Combine(AutomationToolsCachePath, "NWCs", BlockName)).GetFiles();
             foreach (var File in Files)
-                System.IO.File.Copy(File.FullName, NWCDestinationPath + "\\" + BlockName + "\\" + File.Name);
+                System.IO.File.Copy(File.FullName, Path.Combine(NWCDestinationPath, BlockName, File.Name));
             
 
             // Составляем список всех NWC
-            string NWCListFilePath = NWCDestinationPath + "\\" + BlockName + "\\NWCList.txt";
+            string NWCListFilePath = Path.Combine(NWCDestinationPath, BlockName, "NWCList.txt");
             StreamWriter StreamWriter = File.CreateText(NWCListFilePath);
 
-            Files = new DirectoryInfo(NWCDestinationPath + "\\" + BlockName).GetFiles();
+            Files = new DirectoryInfo(Path.Combine(NWCDestinationPath, BlockName)).GetFiles();
             foreach (var File in Files) 
                 StreamWriter.WriteLine(File.FullName);
 
             StreamWriter.Close();
-            NWCListFilePath = NWCDestinationPath + "\\" + BlockName + "\\NWCList.txt";
+            NWCListFilePath = Path.Combine(NWCDestinationPath, BlockName, "NWCList.txt");
 
             // Запускаем процесс FiletoolsTaskRunner для создания NWD
             Console.WriteLine("[*] Создание NWD...");
@@ -272,10 +271,10 @@ namespace AutomationTools
             {
                 StartInfo = new ProcessStartInfo
                 {
-                    FileName = FileToolsTaskRunnerPath + "\\FiletoolsTaskRunner.exe",
-                    Arguments = "/i " + "\"" + NWCListFilePath + "\"" + 
-                                " /of " + "\"" + NWDDestinationPath + "\\" + BlockName + "\\" + BlockName + ".nwd" + "\"" +
-                                " /log " + "\"" + AutomationToolsCachePath + "\\Logs\\" + BlockName + "\\LogNWD.log" + "\"",
+                    FileName = Path.Combine(FileToolsTaskRunnerPath, "FiletoolsTaskRunner.exe"),
+                    Arguments = $"/i \"{ NWCListFilePath }\" " + 
+                                $"/of \"{ Path.Combine(NWDDestinationPath, BlockName, $"{BlockName}.nwd") }\" " +
+                                $"/log \"{ Path.Combine(AutomationToolsCachePath, "Logs", BlockName, "LogNWD.log") }\" ",
                     UseShellExecute = false,
                     RedirectStandardOutput = false,
                     CreateNoWindow = true
@@ -285,7 +284,7 @@ namespace AutomationTools
             GenerationProcess.Start();
             GenerationProcess.WaitForExit();
 
-            if (!File.Exists(NWDDestinationPath + "\\" + BlockName + "\\" + BlockName + ".nwd"))
+            if (!File.Exists(Path.Combine(NWDDestinationPath, BlockName, $"{BlockName}.nwd")))
             {
                 Console.WriteLine("[-] Возникла ошибка при создании NWD, прерывание...");
                 Console.WriteLine("[!] Проверьте лицензию Navisworks. Если проблема сохранится, обратитесь к разработчику.");
@@ -295,13 +294,13 @@ namespace AutomationTools
             // Ищем файл-маркер, если он найден - запускаем процесс генерации NWF
             string NWFDestinationPath = DestinationPaths["NWF"];
 
-            if (File.Exists(NWFDestinationPath + "\\" + BlockName + "\\UPDATE"))
+            if (File.Exists(Path.Combine(NWFDestinationPath, BlockName, "UPDATE")))
             {
-                Utils.RecursiveDelete(new DirectoryInfo(NWFDestinationPath + "\\" + BlockName));
-                Directory.CreateDirectory(NWFDestinationPath + "\\" + BlockName);
+                Utils.RecursiveDelete(new DirectoryInfo(Path.Combine(NWFDestinationPath, BlockName)));
+                Directory.CreateDirectory(Path.Combine(NWFDestinationPath, BlockName));
 
                 if (ShouldDeleteUPDATEFile == false)
-                    File.Create(NWFDestinationPath + "\\" + BlockName + "\\UPDATE");
+                    File.Create(Path.Combine(NWFDestinationPath, BlockName, "UPDATE"));
 
                 // Запускаем процесс FiletoolsTaskRunner для создания NWF
                 Console.WriteLine("[*] Создание NWF...");
@@ -310,10 +309,10 @@ namespace AutomationTools
                 {
                     StartInfo = new ProcessStartInfo
                     {
-                        FileName = FileToolsTaskRunnerPath + "\\FiletoolsTaskRunner.exe",
-                        Arguments = "/i " + "\"" + NWCListFilePath + "\"" +
-                                    " /of " + "\"" + NWFDestinationPath + "\\" + BlockName + "\\" + BlockName + ".nwf" + "\"" +
-                                    " /log " + "\"" + AutomationToolsCachePath + "\\Logs\\" + BlockName + "\\LogNWF.log" + "\"",
+                        FileName = Path.Combine(FileToolsTaskRunnerPath, "FiletoolsTaskRunner.exe"),
+                        Arguments = $"/i \"{NWCListFilePath}\" " +
+                                    $"/of \"{Path.Combine(NWFDestinationPath, BlockName, $"{BlockName}.nwf")}\" " +
+                                    $"/log \"{Path.Combine(AutomationToolsCachePath, "Logs", BlockName, "LogNWF.log")}\" ",
                         UseShellExecute = false,
                         RedirectStandardOutput = false,
                         CreateNoWindow = true
@@ -323,7 +322,7 @@ namespace AutomationTools
                 GenerationProcess.Start();
                 GenerationProcess.WaitForExit();
 
-                if (!File.Exists(NWFDestinationPath + "\\" + BlockName + "\\" + BlockName + ".nwf"))
+                if (!File.Exists(Path.Combine(NWFDestinationPath, BlockName, $"{BlockName}.nwf")))
                 {
                     Console.WriteLine("[-] Возникла ошибка при создании NWF, прерывание...");
                     Console.WriteLine("[!] Проверьте лицензию Navisworks. Если проблема сохранится, обратитесь к разработчику.");

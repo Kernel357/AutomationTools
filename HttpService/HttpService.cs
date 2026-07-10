@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -16,12 +17,28 @@ namespace AutomationTools
         static public string            StatusMessage       { get; private set; }
 
         // Methods of content generation
-        static public string GetJSONContent(Object Content) { return JsonConvert.SerializeObject(Content); }
-        static public string GetURLEncodedContent(Object Content) { return new FormUrlEncodedContent((Dictionary<string, string>)Content).ReadAsStringAsync().Result; }
+        static public StringContent GetJSONContent(Object Content) 
+        { 
+            return new StringContent(JsonConvert.SerializeObject(Content), 
+                                     Encoding.UTF8, 
+                                     "application/json");
+        }
+
+        static public StringContent GetURLEncodedContent(Object Content) 
+        { 
+            return new StringContent(new FormUrlEncodedContent((Dictionary<string, string>)Content).ReadAsStringAsync().Result,
+                                     Encoding.UTF8,
+                                     "application/x-www-form-urlencoded"); 
+        }
+
+        static public StreamContent GetBinaryContent(Object Content) 
+        { 
+            return new StreamContent((FileStream)Content); 
+        }
 
         // Request methods
         public static string GETSync(string URL,
-                                    Dictionary<string, string> Headers)
+                                     Dictionary<string, string> Headers)
         {
             var Request = new HttpRequestMessage()
             {
@@ -32,18 +49,13 @@ namespace AutomationTools
             foreach (var Header in Headers)
                 Request.Headers.Add(Header.Key, Header.Value);
 
-            HttpResponseMessage Result = _HttpServiceInstance.SendAsync(Request).Result;
-
-            StatusCode = Result.StatusCode;
-            StatusMessage = Result.ReasonPhrase;
-
-            return Result.Content.ReadAsStringAsync().Result;
+            return SendRequest(Request);
         }
 
         public static string POSTSync(string URL,
-                                     Dictionary<string, string> Headers,
-                                     Object Content,
-                                     string ContentType)
+                                      Dictionary<string, string> Headers,
+                                      Object Content,
+                                      string ContentType)
         {
             var Request = new HttpRequestMessage()
             {
@@ -54,9 +66,58 @@ namespace AutomationTools
             foreach (var Header in Headers)
                 Request.Headers.Add(Header.Key, Header.Value);
 
-            Request.Content = new StringContent(Defines.ContentType[ContentType].Item1(Content), Encoding.UTF8, Defines.ContentType[ContentType].Item2);
+            Request.Content = (HttpContent)Defines.ContentType[ContentType].Item1(Content);
             Request.Content.Headers.ContentType = new MediaTypeHeaderValue(Defines.ContentType[ContentType].Item2);
 
+            return SendRequest(Request);
+        }
+
+        public static string PUTSync(string URL,
+                                     Dictionary<string, string> Headers,
+                                     Object Content,
+                                     string ContentType,
+                                     long ContentLength)
+        {
+            var Request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Put,
+                RequestUri = new Uri(URL),
+            };
+
+            foreach (var Header in Headers)
+                Request.Headers.Add(Header.Key, Header.Value);
+
+            Request.Content = (HttpContent)Defines.ContentType[ContentType].Item1(Content);
+            Request.Content.Headers.ContentType = new MediaTypeHeaderValue(Defines.ContentType[ContentType].Item2);
+
+            if(ContentLength > 0)
+                Request.Content.Headers.ContentLength = ContentLength;
+
+            return SendRequest(Request);
+        }
+
+        public static string PATCHSync(string URL,
+                                       Dictionary<string, string> Headers,
+                                       Object Content,
+                                       string ContentType)
+        {
+            var Request = new HttpRequestMessage()
+            {
+                Method = new HttpMethod("PATCH"),
+                RequestUri = new Uri(URL),
+            };
+
+            foreach (var Header in Headers)
+                Request.Headers.Add(Header.Key, Header.Value);
+
+            Request.Content = (HttpContent)Defines.ContentType[ContentType].Item1(Content);
+            Request.Content.Headers.ContentType = new MediaTypeHeaderValue(Defines.ContentType[ContentType].Item2);
+
+            return SendRequest(Request);
+        }
+
+        private static string SendRequest(HttpRequestMessage Request)
+        {
             HttpResponseMessage Result = _HttpServiceInstance.SendAsync(Request).Result;
 
             StatusCode = Result.StatusCode;
