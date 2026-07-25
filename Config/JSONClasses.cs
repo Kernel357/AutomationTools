@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.IO;
 
 namespace AutomationTools
 {
@@ -19,16 +20,15 @@ namespace AutomationTools
         public int NumberOfWorkingCoresForGenerationNWFiles     { get; set; }
         public int NumberOfWorkingCoresForGenerationIFCFiles    { get; set; }
 
-        // Signal Docs segment
-        public string   CompanyName                     { get; set; }
-        public string   ProjectName                     { get; set; }
-
         public List<BlockWithModels> BlocksWithModels;
     }
 
     class BlockWithModels
     {
         public string Name { get; set; }
+        public string CompanyName { get; set; }
+        public string ProjectName { get; set; }
+        public string TargetViewName { get; set; }
 
         public List<string> PathsToModelsAndDestinationPaths;
     }

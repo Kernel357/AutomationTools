@@ -34,19 +34,19 @@ namespace AutomationTools
                     break;
 
                 // Открываем в Revit .rvt документ 
-                Console.WriteLine("[*] Поток {0}: Открытие документа...", ThreadNumber);
+                LoggingSystem.WriteLine($"[*] Поток {ThreadNumber}: Открытие документа...");
 
                 Status = (Defines.Status)_ServiceInterfaces[ThreadNumber].RunTask("OpenDocument",
                                                                                   ref StatusMessage,
                                                                                   new string[] { $"{_AutomationToolsCachePath}\\RVTs\\{_BlockName}\\{_BufferForModelReferences[(int)Param, i, 0]}" });
 
-                Console.WriteLine("[*] Поток {0}: Статус открытия документа: {1}", ThreadNumber, Status);
+                LoggingSystem.WriteLine($"[*] Поток {ThreadNumber}: Статус открытия документа: {ThreadNumber}");
 
                 // После окончания операции проверим глобальный и локальный статус
                 if (Status != Defines.Status.Success || _Status != Defines.Status.Success)
                 {
                     if (Status != Defines.Status.Success)
-                        Console.WriteLine("[-] Сообщение об ошибке: {0}", StatusMessage);
+                        LoggingSystem.WriteLine($"[-] Сообщение об ошибке: {StatusMessage}");
 
                     _Status = Defines.Status.Error;
                     break;
@@ -54,38 +54,38 @@ namespace AutomationTools
 
 
                 // Экспортируем документ в IFC
-                Console.WriteLine("[*] Поток {0}: Экспорт в IFC...", ThreadNumber);
+                LoggingSystem.WriteLine($"[*] Поток {ThreadNumber}: Экспорт в IFC...");
 
                 Status = (Defines.Status)_ServiceInterfaces[ThreadNumber].RunTask("ExportToIFC",
                                                                                   ref StatusMessage,
                                                                                   new string[] { $"{_AutomationToolsCachePath}\\IFCs\\{_BlockName}" });
 
-                Console.WriteLine("[*] Поток {0}: Статус экспорта в IFC: {1}", ThreadNumber, Status);
+                LoggingSystem.WriteLine($"[*] Поток {ThreadNumber}: Статус экспорта в IFC: {Status}");
 
                 // После окончания операции проверим глобальный и локальный статус
                 if (Status != Defines.Status.Success || _Status != Defines.Status.Success)
                 {
                     if (Status != Defines.Status.Success)
-                        Console.WriteLine("[-] Сообщение об ошибке: {0}", StatusMessage);
+                        LoggingSystem.WriteLine($"[-] Сообщение об ошибке: {StatusMessage}");
 
                     _Status = Defines.Status.Error;
                     break;
                 }
 
                 // Закрываем документ
-                Console.WriteLine("[*] Поток {0}: Закрытие документа...", ThreadNumber);
+                LoggingSystem.WriteLine($"[*] Поток {ThreadNumber}: Закрытие документа...");
 
                 Status = (Defines.Status)_ServiceInterfaces[ThreadNumber].RunTask("CloseDocument",
                                                                                   ref StatusMessage,
                                                                                   new string[] { });
 
-                Console.WriteLine("[*] Поток {0}: Статус закрытия документа: {1}", ThreadNumber, Status);
+                LoggingSystem.WriteLine($"[*] Поток {ThreadNumber}: Статус закрытия документа: {Status}");
 
                 // После окончания операции проверим глобальный и локальный статус
                 if (Status != Defines.Status.Success || _Status != Defines.Status.Success)
                 {
                     if (Status != Defines.Status.Success)
-                        Console.WriteLine("[-] Сообщение об ошибке: {0}", StatusMessage);
+                        LoggingSystem.WriteLine($"[-] Сообщение об ошибке: {StatusMessage}");
 
                     _Status = Defines.Status.Error;
                     break;
@@ -108,7 +108,7 @@ namespace AutomationTools
             {
                 // Запускаем Revit 
 
-                Console.WriteLine("[*] Запуск экземпляра Revit...");
+                LoggingSystem.WriteLine("[*] Запуск экземпляра Revit...");
 
                 // Нельзя просто взять и запустить Revit.exe в отдельном процессе из процесса AutomationTools,
                 // в таком случае он не найдёт лицензию и не запутится. Не совсем ясно почему так происходит
@@ -122,7 +122,7 @@ namespace AutomationTools
                 EndpointAddress EndpointAddress = new EndpointAddress(new Uri($"net.tcp://127.0.0.1:{Port.ToString()}/WCFService"));
                 NetTcpBinding Binding = new NetTcpBinding();
 
-                Console.WriteLine("[*] Подключение к WCF сервису экземпляра Revit...");
+                LoggingSystem.WriteLine("[*] Подключение к WCF сервису экземпляра Revit...");
 
                 // Ждём когда WCF сервис будет запущен + нам удастся к нему подключиться, а пока блокируем дальнейшее выполнение
                 var ChannelFactory = new ChannelFactory<IWCFService>(Binding, EndpointAddress);
@@ -143,7 +143,7 @@ namespace AutomationTools
                     }
                 }
 
-                Console.WriteLine("[+] Выполнено подключение к WCF сервису экземпляра Revit!");
+                LoggingSystem.WriteLine("[+] Выполнено подключение к WCF сервису экземпляра Revit!");
                 Port++;
             }
 
@@ -158,7 +158,7 @@ namespace AutomationTools
                                                          string                          AutomationToolsCachePath,
                                                          Dictionary<string, string>      DestinationPaths)
         {
-            Console.WriteLine("[*] Генерация IFC файлов...");
+            LoggingSystem.WriteLine("[*] Генерация IFC файлов...");
 
             _ServiceInterfaces = new List<IWCFService>();
             _BufferForModelReferences = BufferForModelReferences;
@@ -184,7 +184,7 @@ namespace AutomationTools
             {
                 Threads.Add(new Thread(FilesGenerationWorker));
                 Threads[i].Start(i);
-                Console.WriteLine("[+] Поток {0} запущен!", i);
+                LoggingSystem.WriteLine($"[+] Поток {i} запущен!");
             }
 
             // Если нужное количество потоков не было запущено, то выходим
@@ -194,8 +194,8 @@ namespace AutomationTools
                 foreach (var Thread in Threads)
                     Thread.Abort();
 
-                Console.WriteLine("[-] Возникла ошибка при запуске потоков, прерывание...");
-                Console.WriteLine("[!] Вероятно, произошла внутренняя ошибка, обратитесь к разработчику.");
+                LoggingSystem.WriteLine("[-] Возникла ошибка при запуске потоков, прерывание...");
+                LoggingSystem.WriteLine("[!] Вероятно, произошла внутренняя ошибка, обратитесь к разработчику.");
                 return Defines.Status.Error;
             }
 
@@ -207,7 +207,7 @@ namespace AutomationTools
                 if (Threads[ThreadIterator].IsAlive != false)
                     continue;
 
-                Console.WriteLine("[+] Поток {0} завершён!", ThreadIterator);
+                LoggingSystem.WriteLine($"[+] Поток {ThreadIterator} завершён!");
                 ThreadIterator++;
             }
 
@@ -218,10 +218,15 @@ namespace AutomationTools
 
             // Проверяем доступность диска и директории пункта назначения
             string IFCDestinationPath = DestinationPaths["IFC"];
+            if(string.IsNullOrEmpty(IFCDestinationPath))
+            {
+                LoggingSystem.WriteLine("[-] Директория для IFC не задана, прерывание...");
+                return Defines.Status.Error;
+            }
 
             if (new DirectoryInfo(IFCDestinationPath).Exists == false)
             {
-                Console.WriteLine("[-] Директория пункта назначения недоступна...");
+                LoggingSystem.WriteLine("[-] Директория пункта назначения недоступна...");
                 return Defines.Status.Error;
             }
 

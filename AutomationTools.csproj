@@ -129,6 +129,8 @@
     <Compile Include="IFCFilesGeneration\IFСFilesGeneration.cs" />
     <Compile Include="SignalDocsModule\AuthAndGetTokensModule.cs" />
     <Compile Include="SignalDocsModule\SignalDocsCommands.cs" />
+    <Compile Include="Utils\LoggingSystem.cs" />
+    <Compile Include="Utils\SafeOperationsForNetworkDisk.cs" />
     <Compile Include="WCFService\IWCFService.cs" />
     <Compile Include="Config\JSONClasses.cs" />
     <Compile Include="NavisworksFilesGeneration\NavisworksFilesGeneration.cs" />

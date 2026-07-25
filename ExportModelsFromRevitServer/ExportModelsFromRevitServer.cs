@@ -23,7 +23,7 @@ namespace AutomationTools
             Process ExportProcess;
             int ThreadNumber = (int)Param;
             
-            StreamWriter StreamWriter = new StreamWriter($"{_AutomationToolsCachePath}\\Logs\\{_BlockName}\\LogExportFromRevitServer_{ThreadNumber.ToString()}.log", true);
+            StreamWriter StreamWriter = new StreamWriter($"{_AutomationToolsCachePath}\\Logs\\LogExportFromRevitServer_{ThreadNumber.ToString()}.log", true);
 
             for (int i = 0; i < _ModelIteratorForEachCPUCore[ThreadNumber]; i++)
             {
@@ -73,7 +73,7 @@ namespace AutomationTools
                                                                      ref string[,,] BufferForModelReferences,
                                                                      ref int[]      ModelIteratorForEachCPUCore)
         {
-            Console.WriteLine("[*] Загрузка моделей с Revit Server...");
+            LoggingSystem.WriteLine("[*] Загрузка моделей с Revit Server...");
                 
             _BlockName = BlockName;
             _BufferForModelReferences = BufferForModelReferences;
@@ -89,7 +89,7 @@ namespace AutomationTools
             {
                 Threads.Add(new Thread(ExportModelsFromRevitServerWorker));
                 Threads[i].Start(i);
-                Console.WriteLine("[+] Поток {0} запущен!", i);
+                LoggingSystem.WriteLine($"[+] Поток {i} запущен!");
             }
 
             // Если нужное количество потоков не было запущено, то выходим
@@ -101,8 +101,8 @@ namespace AutomationTools
                     Thread.Abort();
                 }
 
-                Console.WriteLine("[-] Возникла ошибка при запуске потоков, прерывание...");
-                Console.WriteLine("[!] Вероятно, произошла внутренняя ошибка, обратитесь к разработчику.");
+                LoggingSystem.WriteLine("[-] Возникла ошибка при запуске потоков, прерывание...");
+                LoggingSystem.WriteLine("[!] Вероятно, произошла внутренняя ошибка, обратитесь к разработчику.");
                 return Defines.Status.Error;
             }
                 
@@ -114,18 +114,18 @@ namespace AutomationTools
                 if (Threads[ThreadIterator].IsAlive != false)
                     continue;
 
-                Console.WriteLine("[+] Поток {0} завершён!", ThreadIterator);
+                LoggingSystem.WriteLine($"[+] Поток {ThreadIterator} завершён!");
                 ThreadIterator++;
             }
 
             if (_Status != Defines.Status.Success)
             {
-                Console.WriteLine("[-] Во время загрузки моделей с Revit Server возникла ошибка, прерывание...");
-                Console.WriteLine("[!] Вы можете найти логи загрузки по пути ..\\Cache\\Logs\\<имя блока>\\.");
+                LoggingSystem.WriteLine("[-] Во время загрузки моделей с Revit Server возникла ошибка, прерывание...");
+                LoggingSystem.WriteLine("[!] Вы можете найти логи загрузки по пути ..\\Cache\\<GUID>\\Logs\\.");
                 return Defines.Status.Error;
             }
 
-            Console.WriteLine("[+] Загрузка моделей с Revit Server завершена!");
+            LoggingSystem.WriteLine("[+] Загрузка моделей с Revit Server завершена!");
             return Defines.Status.Success;
         }
     }

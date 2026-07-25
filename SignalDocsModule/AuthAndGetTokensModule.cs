@@ -109,7 +109,7 @@ namespace AutomationTools
 
             if (HttpService.StatusCode != HttpStatusCode.OK)
             {
-                Console.WriteLine("Ошибка авторизации Signal Docs, прерывание...");
+                LoggingSystem.WriteLine("Ошибка авторизации Signal Docs, прерывание...");
                 return;
             }
 
@@ -126,7 +126,7 @@ namespace AutomationTools
                 FileStream RefreshTokenFileStream = System.IO.File.Create($"{_AutomationToolsRootPath}\\RefreshToken.txt");
                 RefreshTokenFileStream.Write(Encoding.UTF8.GetBytes(RefreshToken), 0, Encoding.UTF8.GetBytes(RefreshToken).Length);
             }
-            catch (Exception ex) { Console.WriteLine(ex.Message); }
+            catch (Exception ex) { LoggingSystem.WriteLine(ex.Message); }
             
         }
 
@@ -144,7 +144,7 @@ namespace AutomationTools
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Критическая ошибка инициализации:\n{ex.Message}\n\nStackTrace:\n{ex.StackTrace}");
+                LoggingSystem.WriteLine($"Критическая ошибка инициализации:\n{ex.Message}\n\nStackTrace:\n{ex.StackTrace}");
                 _WebView2Form.Close();
             }
         }

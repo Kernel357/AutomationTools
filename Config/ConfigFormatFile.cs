@@ -20,7 +20,7 @@ namespace AutomationTools
             }
             catch(Exception e)
             {
-                Console.WriteLine(e.Message);
+                LoggingSystem.WriteLine(e.Message);
                 return Defines.Status.Error;
             }
 

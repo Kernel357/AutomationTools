@@ -6,12 +6,16 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Threading;
 
 namespace AutomationTools
 {
     static public class HttpService
     {
-        static private HttpClient _HttpServiceInstance = new HttpClient();
+        static private HttpClient _HttpServiceInstance = new HttpClient()
+        {
+            Timeout = TimeSpan.FromMinutes(10)
+        };
 
         static public HttpStatusCode    StatusCode          { get; private set; }
         static public string            StatusMessage       { get; private set; }
@@ -118,7 +122,31 @@ namespace AutomationTools
 
         private static string SendRequest(HttpRequestMessage Request)
         {
-            HttpResponseMessage Result = _HttpServiceInstance.SendAsync(Request).Result;
+            HttpResponseMessage Result = null;
+            for (int Attempt = 1; Attempt <= 3; Attempt++)
+            {
+                try
+                {
+                    Result = _HttpServiceInstance.SendAsync(Request).Result;
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    if (Attempt < 3)
+                    {
+                        LoggingSystem.WriteLine("[-] Произошла ошибка при выполнении сетевого запроса... Повторим через 3 сек");
+                        Thread.Sleep(3000);
+                        continue;
+                    }
+                    else
+                    {
+                        LoggingSystem.WriteLine($"[-] Критическая ошибка при выполнении сетевого запроса: {ex.Message}");
+                        StatusCode = HttpStatusCode.InternalServerError;
+
+                        return null;
+                    }
+                }
+            }
 
             StatusCode = Result.StatusCode;
             StatusMessage = Result.ReasonPhrase;
