@@ -64,7 +64,15 @@ namespace AutomationTools
 
             // Init logging system
             LoggingSystem.Init(_AutomationToolsCachePath);
-            LoggingSystem.WriteLine("[*] Запуск инструметов автоматизации...");
+
+            // Register global exception handler
+            AppDomain.CurrentDomain.UnhandledException += (Sender, Args) =>
+            {
+                LoggingSystem.WriteLine($"[-] Необработанное исключение: {Args.ExceptionObject as Exception}");
+                Exit();
+            };
+
+            LoggingSystem.WriteLine("[*] Запуск инструментов автоматизации...");
 
             // Analyze command line arguments
             if (args.Length == 0 || args[0] == "help")
@@ -249,9 +257,11 @@ namespace AutomationTools
             var RVTDestinationPath = _DestinationPaths["RVT"];
             string PathToModel = string.Empty;
 
+            if (new DirectoryInfo(Path.Combine(RVTDestinationPath, _BlockName)).Exists)
+                Utils.RecursiveDelete(new DirectoryInfo(Path.Combine(RVTDestinationPath, _BlockName)));
+
             try
             {
-                // Create destination folder
                 Directory.CreateDirectory($"{RVTDestinationPath}\\{_BlockName}");
 
                 for (int i = 0; i < _BufferForModelReferences.GetLength(0); i++)
@@ -342,7 +352,11 @@ namespace AutomationTools
 
         static private Defines.Status SignalDocsTask()
         {
-            AuthAndGetTokensModule.AuthAndGetTokensModuleMain(_AutomationToolsRootPath);
+            if(AuthAndGetTokensModule.AuthAndGetTokensModuleMain(_AutomationToolsRootPath) != Defines.Status.Success)
+            {
+                LoggingSystem.WriteLine("[-] Ошибка авторизации Signal Docs, прерывание...");
+                return Defines.Status.Error;
+            }
 
             Defines.Status Status = Defines.Status.Success;
 
@@ -374,6 +388,7 @@ namespace AutomationTools
                                                                     ProjectName,
                                                                     $"{_DestinationPaths["NWD"].Split(new string[] { $"{ProjectName}\\" }, StringSplitOptions.RemoveEmptyEntries)[1]}\\{_BlockName}",
                                                                     $"{_BlockName}.nwd");
+
             LoggingSystem.WriteLine($"[*] Статус запуска конвертации: {Status}");
 
             return Status;

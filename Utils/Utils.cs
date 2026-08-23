@@ -10,18 +10,22 @@ namespace AutomationTools
                 return;
 
             foreach (var Directory in BaseDirectory.EnumerateDirectories())
-            {
                 RecursiveDelete(Directory);
-            }
 
             var Files = BaseDirectory.GetFiles();
-            foreach (var File in Files)
-            {
-                File.IsReadOnly = false;
-                File.Delete();
-            }
 
-            BaseDirectory.Delete();
+            try
+            {
+                foreach (var File in Files)
+                {
+                    File.IsReadOnly = false;
+                    File.Delete();
+                }
+
+                BaseDirectory.Delete();
+            }
+            catch { }
+            
         }
     }
 }

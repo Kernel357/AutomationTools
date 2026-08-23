@@ -17,23 +17,24 @@ namespace AutomationTools
 {
     class AuthAndGetTokensModule
     {
-        static public string    AccessToken { get; private set; }
+        static public string            AccessToken { get; private set; }
 
-        static private string   _RedirectUri = "https://docs.sgnl.pro/callback";
-        static private string   _ClientID = "docs_web";
-        static private string   _Scope = "offline_access cl.front cl.sys hub.r hub.e doc.c doc.r doc.u doc.d doc.e doc.x";
+        static private string           _RedirectUri = "https://docs.sgnl.pro/callback";
+        static private string           _ClientID = "docs_web";
+        static private string           _Scope = "offline_access cl.front cl.sys hub.r hub.e doc.c doc.r doc.u doc.d doc.e doc.x";
 
-        static private string   _Code = string.Empty;
+        static private string           _Code = string.Empty;
 
-        static private string   _AuthUrl = string.Empty;
-        static private string   _CodeVerifier = string.Empty;
+        static private string           _AuthUrl = string.Empty;
+        static private string           _CodeVerifier = string.Empty;
 
-        static private Form     _WebView2Form;
-        static private WebView2 _WebView2;
+        static private Form             _WebView2Form;
+        static private WebView2         _WebView2;
 
-        static private string   _AutomationToolsRootPath;
+        static private string           _AutomationToolsRootPath;
+        static private Defines.Status   _Status;
 
-        static public void AuthAndGetTokensModuleMain(string AutomationToolsRootPath)
+        static public Defines.Status AuthAndGetTokensModuleMain(string AutomationToolsRootPath)
         {
             _AutomationToolsRootPath = AutomationToolsRootPath;
 
@@ -41,7 +42,9 @@ namespace AutomationTools
             if (File.Exists($"{_AutomationToolsRootPath}\\RefreshToken.txt") && !File.ReadAllText($"{_AutomationToolsRootPath}\\RefreshToken.txt").Equals(""))
                 RefreshToken();
             else
-                AuthAndGetTokens(); 
+                AuthAndGetTokens();
+
+            return _Status;
         }
 
         static private void RefreshToken()
@@ -58,7 +61,10 @@ namespace AutomationTools
                 { "scope",          _Scope }
             };
 
-            SendRequestAndUpdateTokens(ContentPairs);
+            _Status = SendRequestAndUpdateTokens(ContentPairs);
+
+            if (_Status != Defines.Status.Success)
+                LoggingSystem.WriteLine("[!] Вероятно, RefreshToken был повреждён. Для исправления: AutomationTools.exe AutoDeploy SIGNALDOCSAUTH");
         }
 
         static private void AuthAndGetTokens()
@@ -99,7 +105,7 @@ namespace AutomationTools
             Application.Run(_WebView2Form);
         }
 
-        static private void SendRequestAndUpdateTokens(Dictionary<string, string> ContentPairs)
+        static private Defines.Status SendRequestAndUpdateTokens(Dictionary<string, string> ContentPairs)
         {
             // Send the request to exchange the refresh token for a new access token (It doesn't make sense to use asynchronous functionality here)
             string Response = HttpService.POSTSync(Defines.SignalDocsEndpoints["TokenEndpoint"], 
@@ -108,10 +114,7 @@ namespace AutomationTools
                                                     "URLEncoded");
 
             if (HttpService.StatusCode != HttpStatusCode.OK)
-            {
-                LoggingSystem.WriteLine("Ошибка авторизации Signal Docs, прерывание...");
-                return;
-            }
+                return Defines.Status.AuthError;
 
             // Deserialize the response to get the access token and refresh token
             JObject JResult = JsonConvert.DeserializeObject<JObject>(Response);
@@ -125,8 +128,14 @@ namespace AutomationTools
             {
                 FileStream RefreshTokenFileStream = System.IO.File.Create($"{_AutomationToolsRootPath}\\RefreshToken.txt");
                 RefreshTokenFileStream.Write(Encoding.UTF8.GetBytes(RefreshToken), 0, Encoding.UTF8.GetBytes(RefreshToken).Length);
+                RefreshTokenFileStream.Flush();
+                RefreshTokenFileStream.Close();
+                return Defines.Status.Success;
             }
-            catch (Exception ex) { LoggingSystem.WriteLine(ex.Message); }
+            catch { 
+                LoggingSystem.WriteLine("[-] Произошла ошибка при записи RefreshToken в файл..."); 
+                return Defines.Status.AuthError;
+            }
             
         }
 
@@ -144,7 +153,7 @@ namespace AutomationTools
             }
             catch (Exception ex)
             {
-                LoggingSystem.WriteLine($"Критическая ошибка инициализации:\n{ex.Message}\n\nStackTrace:\n{ex.StackTrace}");
+                LoggingSystem.WriteLine($"[-] Критическая ошибка инициализации:\n{ex.Message}\n\nStackTrace:\n{ex.StackTrace}");
                 _WebView2Form.Close();
             }
         }
@@ -175,7 +184,7 @@ namespace AutomationTools
                     { "code_verifier",  _CodeVerifier }
                 };
 
-                SendRequestAndUpdateTokens(ContentPairs);
+                _Status = SendRequestAndUpdateTokens(ContentPairs);
             }
         }
     }

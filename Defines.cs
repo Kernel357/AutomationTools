@@ -7,30 +7,31 @@ namespace AutomationTools
     {
         public enum Status
         {
-            Success,
+            Success = 0,
 
             // DEFAULT
-            Error,
-            FileDoesNotExistError,
+            Error = 10,
+            FileDoesNotExistError = 11,
 
 
             // Signal Docs Error
-            AuthError,
-            GetTokenError,
-            RefreshTokenError,
+            AuthError = 20,
+            GetTokenError = 21,
+            RefreshTokenError = 22,
 
-            CompanyWasNotFoundError,
-            ProjectWasNotFoundError,
-            ProjectTreeIsCorrupted,
-            FileWasNotFoundError,
-            FollowPathError,
-            AutodeskForgeProcessingError,
-            UploadFileError,
+            CompanyWasNotFoundError = 23,
+            ProjectWasNotFoundError = 24,
+            ProjectTreeIsCorrupted = 25,
+            FileWasNotFoundError = 26,
+            FollowPathError = 27,
+            AutodeskForgeProcessingError = 28,
+            UploadFileError = 29,
 
             // Export errors
-            ViewNotFoundError,
-            ViewNotValidForElementIterationError,
-            ExportViewError,
+            ViewNotFoundError = 30,
+            GeometryNotFoundError = 31,
+            ViewNotValidForElementIterationError = 32,
+            ExportViewError = 33,
         }
 
         public static Dictionary<string, (Func<Object, Object>, string)> ContentType = new Dictionary<string, (Func<Object, Object>, string)>()

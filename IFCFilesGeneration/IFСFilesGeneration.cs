@@ -1,23 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.ServiceModel;
 using System.Threading;
-using WCFServiceInRevit;
 
 namespace AutomationTools
 {
     class IFСFilesGeneration 
     {
-        private static List<IWCFService>    _ServiceInterfaces;
         private static string[,,]           _BufferForModelReferences;
         private static int[]                _ModelIteratorForEachCPUCore;
         private static string               _AutomationToolsCachePath;
         private static string               _BlockName;
-        private static int                  _NumberOfWorkingCores;
-        private static int                  _RevitAndNavisworksVersion;
         private static Defines.Status       _Status;
 
         private static void FilesGenerationWorker(object Param)
@@ -27,18 +20,24 @@ namespace AutomationTools
 
             int ThreadNumber = (int)Param;
 
+            string DocumentName = string.Empty;
+
             for (int i = 0; i < _ModelIteratorForEachCPUCore[ThreadNumber]; i++)
             {
                 // Перед началом проверим глобальный статус
                 if (_Status != Defines.Status.Success)
                     break;
 
-                // Открываем в Revit .rvt документ 
-                LoggingSystem.WriteLine($"[*] Поток {ThreadNumber}: Открытие документа...");
+                // Получаем название документа
+                DocumentName = _BufferForModelReferences[(int)Param, i, 0];
 
-                Status = (Defines.Status)_ServiceInterfaces[ThreadNumber].RunTask("OpenDocument",
-                                                                                  ref StatusMessage,
-                                                                                  new string[] { $"{_AutomationToolsCachePath}\\RVTs\\{_BlockName}\\{_BufferForModelReferences[(int)Param, i, 0]}" });
+                // Открываем в Revit .rvt документ 
+                LoggingSystem.WriteLine($"[*] Поток {ThreadNumber}: Открытие \"{DocumentName}\"...");
+
+                Status = WCFService.RunTask(ThreadNumber,
+                                            "OpenDocument",
+                                            ref StatusMessage,
+                                            new string[] { $"{_AutomationToolsCachePath}\\RVTs\\{_BlockName}\\{DocumentName}" });
 
                 LoggingSystem.WriteLine($"[*] Поток {ThreadNumber}: Статус открытия документа: {ThreadNumber}");
 
@@ -56,9 +55,10 @@ namespace AutomationTools
                 // Экспортируем документ в IFC
                 LoggingSystem.WriteLine($"[*] Поток {ThreadNumber}: Экспорт в IFC...");
 
-                Status = (Defines.Status)_ServiceInterfaces[ThreadNumber].RunTask("ExportToIFC",
-                                                                                  ref StatusMessage,
-                                                                                  new string[] { $"{_AutomationToolsCachePath}\\IFCs\\{_BlockName}" });
+                Status = WCFService.RunTask(ThreadNumber,
+                                            "ExportToIFC",
+                                            ref StatusMessage,
+                                            new string[] { $"{_AutomationToolsCachePath}\\IFCs\\{_BlockName}" });
 
                 LoggingSystem.WriteLine($"[*] Поток {ThreadNumber}: Статус экспорта в IFC: {Status}");
 
@@ -73,11 +73,12 @@ namespace AutomationTools
                 }
 
                 // Закрываем документ
-                LoggingSystem.WriteLine($"[*] Поток {ThreadNumber}: Закрытие документа...");
+                LoggingSystem.WriteLine($"[*] Поток {ThreadNumber}: Закрытие \"{DocumentName}\"...");
 
-                Status = (Defines.Status)_ServiceInterfaces[ThreadNumber].RunTask("CloseDocument",
-                                                                                  ref StatusMessage,
-                                                                                  new string[] { });
+                Status = WCFService.RunTask(ThreadNumber,
+                                            "CloseDocument",
+                                            ref StatusMessage,
+                                            new string[] { });
 
                 LoggingSystem.WriteLine($"[*] Поток {ThreadNumber}: Статус закрытия документа: {Status}");
 
@@ -93,61 +94,12 @@ namespace AutomationTools
             }
 
             // После завершения закрываем Revit
-            _ServiceInterfaces[ThreadNumber].RunTask("RevitShutdown",
-                                                     ref StatusMessage,
-                                                     new string[] { });
+            WCFService.RunTask(ThreadNumber,
+                               "RevitShutdown",
+                               ref StatusMessage,
+                               new string[] { });
 
             return;
-        }
-
-        private static Defines.Status InitRevitAPI()
-        {
-            int Port = 9000;
-
-            for (int i = 0; i < _NumberOfWorkingCores; i++)
-            {
-                // Запускаем Revit 
-
-                LoggingSystem.WriteLine("[*] Запуск экземпляра Revit...");
-
-                // Нельзя просто взять и запустить Revit.exe в отдельном процессе из процесса AutomationTools,
-                // в таком случае он не найдёт лицензию и не запутится. Не совсем ясно почему так происходит
-
-                // Используем метод с планировщиком Windows и добавляем задачу
-                // с выполнением по триггеру. Активируем этот триггер из нашего приложения. Задача запустит Revit.exe
-                EventLog.WriteEvent("Application", new EventInstance(_RevitAndNavisworksVersion, 0));
-
-                // Подключаемся к WCF сервису, запущенному внутри Revit,
-                // чтобы получить возможность выполнять действия с проектом в контексте Revit
-                EndpointAddress EndpointAddress = new EndpointAddress(new Uri($"net.tcp://127.0.0.1:{Port.ToString()}/WCFService"));
-                NetTcpBinding Binding = new NetTcpBinding();
-
-                LoggingSystem.WriteLine("[*] Подключение к WCF сервису экземпляра Revit...");
-
-                // Ждём когда WCF сервис будет запущен + нам удастся к нему подключиться, а пока блокируем дальнейшее выполнение
-                var ChannelFactory = new ChannelFactory<IWCFService>(Binding, EndpointAddress);
-                while (true)
-                {
-                    try
-                    {
-                        IWCFService ServiceInterface = ChannelFactory.CreateChannel();
-                        ((IContextChannel)ServiceInterface).OperationTimeout = new TimeSpan(9, 0, 0);
-                        ServiceInterface.IsLoaded();
-
-                        _ServiceInterfaces.Add(ServiceInterface);
-                        break;
-                    }
-                    catch
-                    {
-                        continue;
-                    }
-                }
-
-                LoggingSystem.WriteLine("[+] Выполнено подключение к WCF сервису экземпляра Revit!");
-                Port++;
-            }
-
-            return Defines.Status.Success;
         }
 
         public static Defines.Status FilesGenerationMain(ref string[,,]                  BufferForModelReferences,
@@ -160,17 +112,14 @@ namespace AutomationTools
         {
             LoggingSystem.WriteLine("[*] Генерация IFC файлов...");
 
-            _ServiceInterfaces = new List<IWCFService>();
             _BufferForModelReferences = BufferForModelReferences;
             _ModelIteratorForEachCPUCore = ModelIteratorForEachCPUCore;
             _AutomationToolsCachePath = AutomationToolsCachePath;
             _BlockName = BlockName;
-            _NumberOfWorkingCores = NumberOfWorkingCores;
-            _RevitAndNavisworksVersion = RevitAndNavisworksVersion;
             _Status = Defines.Status.Success;
 
             // Инициализируем систему связи с Revit
-            if (InitRevitAPI() != Defines.Status.Success)
+            if (WCFService.InitializeСonnection(NumberOfWorkingCores, RevitAndNavisworksVersion) != Defines.Status.Success)
                 return Defines.Status.Error;
 
             // Создаём папку для экспорта в ICF
